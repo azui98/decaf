@@ -22,7 +22,7 @@ import java.util.Optional;
 %token BOOL_LIT     INT_LIT     STRING_LIT  ABSTRACT    VAR
 %token IDENTIFIER   AND         OR          STATIC      INSTANCE_OF
 %token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
-%token DEDUCE       GO
+%token DEDUCE       GO          LOCK        UNLOCK
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
 
@@ -234,6 +234,14 @@ Stmt            :   Block
                 |   GO Expr '(' ExprList ')' ';'
                     {
                         $$ = svStmt(new GoCall(new Call($2.expr, $4.exprList, $3.pos), $1.pos));
+                    }
+                |   LOCK '(' Expr ')' ';'
+                    {
+                        $$ = svStmt(new Lock($3.expr, $1.pos));
+                    }
+                |   UNLOCK '(' Expr ')' ';'
+                    {
+                        $$ = svStmt(new Unlock($3.expr, $1.pos));
                     }
                 ;
 

@@ -220,6 +220,16 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         for (var expr : stmt.exprs)
             expr.accept(this, ctx);
     }
+
+    @Override
+    public void visitLock(Tree.Lock stmt, ScopeStack ctx) {
+        stmt.expr.accept(this, ctx);
+    }
+
+    @Override
+    public void visitUnlock(Tree.Unlock stmt, ScopeStack ctx) {
+        stmt.expr.accept(this, ctx);
+    }
     
     @Override
     public void visitNewArray(Tree.NewArray expr, ScopeStack ctx) {

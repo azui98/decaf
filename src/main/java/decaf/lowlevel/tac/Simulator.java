@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -43,8 +44,6 @@ public final class Simulator {
         _instrs = new Vector<>();
         _label_to_addr = new TreeMap<>();
         _addr_to_function = new TreeMap<>();
-        ctx._call_stack = new Stack<>();
-        ctx._actual_args = new Vector<>();
         _label_to_function = new TreeMap<>();
 
         // Allocate vtables
@@ -241,6 +240,7 @@ public final class Simulator {
         final CoroutineContext ctx;
         final InstrExecutor executor;
         public final int coroutineID;
+        private boolean locked;
 
         Coroutine(CoroutineContext ctx) {
             this.ctx = ctx;
@@ -253,10 +253,11 @@ public final class Simulator {
          */
         void run(AtomicBoolean signal) {
             int cnt = 0;
+            locked = false;
 
             while (!ctx._call_stack.isEmpty()) {
                 if (_halt) break;
-                if (signal.get() && cnt>0) {
+                if (signal.get() && cnt>5) {
                     signal.set(false);
                     break;
                 }
@@ -264,6 +265,8 @@ public final class Simulator {
                 //System.out.println("executing : " + _instrs.get(_pc));
                 _instrs.get(ctx._pc).accept(executor);
                 cnt++;
+
+                if (locked) break;
             }
         }
 
@@ -443,6 +446,34 @@ public final class Simulator {
             @Override
             public void visitGoLabel(TacInstr.GoLabel instr) {
                 ctx.isNextCallAsync = true;
+                ctx._pc++;
+            }
+
+            @Override
+            public void visitLock(TacInstr.Lock instr) {
+                Frame frame = ctx._call_stack.peek();
+                int lockID = frame.array[instr.lockID.index];
+                boolean f1 = lockState.containsKey(lockID);
+                boolean f2 = false;
+                if (f1) f2 = lockState.get(lockID);
+                if (lockState.containsKey(lockID) && lockState.get(lockID))
+                    locked = true;
+                else {
+                    lockState.put(lockID, true);
+                    ctx._pc++;
+                }
+            }
+
+            @Override
+            public void visitUnlock(TacInstr.Unlock instr) {
+                Frame frame = ctx._call_stack.peek();
+                int lockID = frame.array[instr.lockID.index];
+                if ((!lockState.containsKey(lockID)) || (!lockState.get(lockID))) {
+                    System.out.println("\nRuntime Error: lock_" + lockID + " is not locked !");
+                    System.exit(-1);
+                }
+                lockState.put(lockID, false);
+                ctx._pc++;
             }
 
             private void callIntrinsic(Intrinsic.Opcode opcode) {
@@ -606,7 +637,7 @@ public final class Simulator {
         public int _pc;
 
         // Call stack
-        private Stack<Frame> _call_stack;
+        private Stack<Frame> _call_stack = new Stack<>();
 
         public boolean isNextCallAsync;
 
@@ -614,7 +645,7 @@ public final class Simulator {
          * Temporarily save the actual arguments given by the PARM instruction. These will be erased once a new stack
          * is created.
          */
-        private Vector<Integer> _actual_args;
+        private Vector<Integer> _actual_args = new Vector<>();
 
         CoroutineContext() { }
 
@@ -644,11 +675,11 @@ public final class Simulator {
                 public void run() {
                     signal.set(true);
                 }
-            }, 0, 5);
+            }, 0, 1);
         }
 
         void addCoroutine(Coroutine coroutine) {
-            System.out.println(coroutine.coroutineID);
+            //System.out.println(coroutine.coroutineID);
             queue.add(coroutine);
         }
 
@@ -656,7 +687,7 @@ public final class Simulator {
             // Round-Robin scheduler
             while (!queue.isEmpty()) {
                 Coroutine task = queue.poll();
-                System.out.println("now running" + task.coroutineID);
+                //System.out.println("now running" + task.coroutineID);
                 task.run(signal);
                 if (!task.finished())
                     queue.offer(task);
@@ -667,4 +698,5 @@ public final class Simulator {
     }
 
     private Scheduler scheduler = new Scheduler();
+    private Map<Integer, Boolean> lockState = new HashMap<>();
 }

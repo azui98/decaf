@@ -270,6 +270,32 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         }
     }
 
+    @Override
+    public void visitLock(Tree.Lock stmt, ScopeStack ctx) {
+        stmt.expr.accept(this, ctx);
+        boolean correctType = false;
+        if (stmt.expr.type instanceof BuiltInType) {
+            var exprType = (BuiltInType)stmt.expr.type;
+            if (exprType.eq(BuiltInType.INT))
+                correctType = true;
+        }
+        if (!correctType)
+            issue(new LockParamNotInteger(stmt.pos, stmt.expr.type.toString()));
+    }
+
+    @Override
+    public void visitUnlock(Tree.Unlock stmt, ScopeStack ctx) {
+        stmt.expr.accept(this, ctx);
+        boolean correctType = false;
+        if (stmt.expr.type instanceof BuiltInType) {
+            var exprType = (BuiltInType)stmt.expr.type;
+            if (exprType.eq(BuiltInType.INT))
+                correctType = true;
+        }
+        if (!correctType)
+            issue(new LockParamNotInteger(stmt.pos, stmt.expr.type.toString()));
+    }
+
     private void checkTestExpr(Tree.Expr expr, ScopeStack ctx) {
         expr.accept(this, ctx);
         if (expr.type.noError() && !expr.type.eq(BuiltInType.BOOL)) {

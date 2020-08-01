@@ -106,6 +106,8 @@ public class LLParser extends Phase<InputStream, Tree.TopLevel> {
                 case Tokens.DEDUCE -> DEDUCE;
                 case Tokens.FUN -> FUN;
                 case Tokens.GO -> GO;
+                case Tokens.LOCK -> LOCK;
+                case Tokens.UNLOCK -> UNLOCK;
                 default -> code; // single-character, use their ASCII code!
             };
         }

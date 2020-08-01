@@ -438,6 +438,18 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
     }
 
     @Override
+    default void visitLock(Tree.Lock lock, FuncVisitor mv) {
+        lock.expr.accept(this, mv);
+        mv.addLock(lock.expr.val);
+    }
+
+    @Override
+    default void visitUnlock(Tree.Unlock lock, FuncVisitor mv) {
+        lock.expr.accept(this, mv);
+        mv.unlock(lock.expr.val);
+    }
+
+    @Override
     default void visitCall(Tree.Call expr, FuncVisitor mv) {
         if (expr.isArrayLength) { // special case for array.length()
 

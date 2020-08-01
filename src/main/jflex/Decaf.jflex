@@ -71,6 +71,8 @@ BAD_ESC             = "\\"[^nrt\"\\]
 "var"               { return keyword(Tokens.VAR);          }
 "fun"               { return keyword(Tokens.FUN);          }
 "go"                { return keyword(Tokens.GO);           }
+"lock"              { return keyword(Tokens.LOCK);         }
+"unlock"            { return keyword(Tokens.UNLOCK);       }
 
     // operators, with more than one character
 "<="                { return operator(Tokens.LESS_EQUAL);    }

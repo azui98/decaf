@@ -98,6 +98,14 @@ public abstract class TacInstr extends PseudoInstr {
             visitOthers(instr);
         }
 
+        default void visitLock(TacInstr.Lock instr) {
+            visitOthers(instr);
+        }
+
+        default void visitUnlock(TacInstr.Unlock instr) {
+            visitOthers(instr);
+        }
+
         default void visitMemory(Memory instr) {
             visitOthers(instr);
         }
@@ -500,6 +508,54 @@ public abstract class TacInstr extends PseudoInstr {
         @Override
         public String toString() {
             return "GoLabel";
+        }
+    }
+
+    public static class Lock extends TacInstr {
+        Temp lockID;
+
+        public Lock(Temp lockID) {
+            super(new Temp[]{}, new Temp[]{lockID});
+            this.lockID = lockID;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitLock(this);
+        }
+
+        @Override
+        public TacInstr map(Map<Temp, Temp> map) {
+            return new Lock(map.get(lockID));
+        }
+
+        @Override
+        public String toString() {
+            return "lock " + lockID;
+        }
+    }
+
+    public static class Unlock extends TacInstr {
+        Temp lockID;
+
+        public Unlock(Temp lockID) {
+            super(new Temp[]{}, new Temp[]{lockID});
+            this.lockID = lockID;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitUnlock(this);
+        }
+
+        @Override
+        public TacInstr map(Map<Temp, Temp> map) {
+            return new Lock(map.get(lockID));
+        }
+
+        @Override
+        public String toString() {
+            return "unlock " + lockID;
         }
     }
 

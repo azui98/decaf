@@ -56,7 +56,25 @@ public class FuncVisitor {
 	public void addGoLabel() {
 	    func.add(new TacInstr.GoLabel());
     }
-	
+
+    /**
+     * Append {@link TacInstr.Lock}
+     *
+     * @param lockID Global lock ID in the VM
+     */
+    public void addLock(Temp lockID) {
+	    func.add(new TacInstr.Lock(lockID));
+    }
+
+    /**
+     * Unlock {@link TacInstr.Lock}
+     *
+     * @param lockID
+     */
+    public void unlock(Temp lockID) {
+        func.add(new TacInstr.Unlock(lockID));
+    }
+
     /**
      * Append {@link TacInstr.Assign}.
      *

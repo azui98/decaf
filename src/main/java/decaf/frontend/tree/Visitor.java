@@ -103,6 +103,14 @@ public interface Visitor<C> {
         visitOthers(that, ctx);
     }
 
+    default void visitLock(Tree.Lock that, C ctx) {
+        visitOthers(that, ctx);
+    }
+
+    default void visitUnlock(Tree.Unlock that, C ctx) {
+        visitOthers(that, ctx);
+    }
+
     default void visitGoCall(Tree.GoCall that, C ctx) {
         visitOthers(that, ctx);
     }

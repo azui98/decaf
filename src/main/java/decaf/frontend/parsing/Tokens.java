@@ -40,6 +40,8 @@ public interface Tokens {
     int DEDUCE = 202;
     int FUN = 203;
     int GO = 204;
+    int LOCK = 205;
+    int UNLOCK = 206;
 
     // MUST use ASCII code to encode a single-character token.
     // '!' (code=33)

@@ -28,7 +28,7 @@ public abstract class Tree {
     public enum Kind {
         TOP_LEVEL, CLASS_DEF, VAR_DEF, METHOD_DEF,
         T_INT, T_BOOL, T_STRING, T_VOID, T_CLASS, T_ARRAY, T_FUNC, LAMBDA,
-        LOCAL_VAR_DEF, BLOCK, ASSIGN, EXPR_EVAL, SKIP, IF, WHILE, FOR, BREAK, RETURN, PRINT,
+        LOCAL_VAR_DEF, BLOCK, ASSIGN, EXPR_EVAL, SKIP, IF, WHILE, FOR, BREAK, RETURN, PRINT, LOCK, UNLOCK,
         INT_LIT, BOOL_LIT, STRING_LIT, NULL_LIT, VAR_SEL, INDEX_SEL, CALL, GOCALL,
         THIS, UNARY_EXPR, BINARY_EXPR, READ_INT, READ_LINE, NEW_CLASS, NEW_ARRAY, CLASS_TEST, CLASS_CAST
     }
@@ -986,6 +986,64 @@ public abstract class Tree {
             v.visitPrint(this, ctx);
         }
     }
+
+    public static class Lock extends Stmt {
+        public final Expr expr;
+
+        public Lock(Expr expr, Pos pos) {
+            super(Kind.LOCK, "Lock", pos);
+            this.expr = expr;
+        }
+
+        @Override
+        public int treeArity() {
+            return 1;
+        }
+
+        @Override
+        public Object treeElementAt(int index) {
+            return switch (index) {
+                case 0 -> expr;
+                default -> throw new IndexOutOfBoundsException(index);
+            };
+        }
+
+        @Override
+        public <C> void accept(Visitor<C> v, C ctx) {
+            v.visitLock(this, ctx);
+        }
+    }
+
+    /**
+     *
+     */
+    public static class Unlock extends Stmt {
+        public final Expr expr;
+
+        public Unlock(Expr expr, Pos pos) {
+            super(Kind.LOCK, "Lock", pos);
+            this.expr = expr;
+        }
+
+        @Override
+        public int treeArity() {
+            return 1;
+        }
+
+        @Override
+        public Object treeElementAt(int index) {
+            return switch (index) {
+                case 0 -> expr;
+                default -> throw new IndexOutOfBoundsException(index);
+            };
+        }
+
+        @Override
+        public <C> void accept(Visitor<C> v, C ctx) {
+            v.visitUnlock(this, ctx);
+        }
+    }
+
 
     /**
      * Statement to start a coroutine.
