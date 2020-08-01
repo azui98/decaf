@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * TAC program simulator.
@@ -32,6 +33,9 @@ public final class Simulator {
      * @param program TAC program
      */
     public void execute(TacProg program) {
+        // acquire the first coroutine
+        CoroutineContext ctx = new CoroutineContext();
+
         // Initialize
         _memory = new Memory();
         _string_pool = new StringPool();
@@ -39,8 +43,8 @@ public final class Simulator {
         _instrs = new Vector<>();
         _label_to_addr = new TreeMap<>();
         _addr_to_function = new TreeMap<>();
-        _call_stack = new Stack<>();
-        _actual_args = new Vector<>();
+        ctx._call_stack = new Stack<>();
+        ctx._actual_args = new Vector<>();
         _label_to_function = new TreeMap<>();
 
         // Allocate vtables
@@ -98,28 +102,16 @@ public final class Simulator {
             throw new Error("No legal main function found");
         }
 
-        var frame = new Frame(_label_to_function.get(FuncLabel.MAIN_LABEL.name));
-        _call_stack.push(frame);
-        _pc = _label_to_addr.get(FuncLabel.MAIN_LABEL.name);
+        var frame = new Frame(_label_to_function.get(FuncLabel.MAIN_LABEL.name), ctx);
+        ctx._call_stack.push(frame);
+        ctx._pc = _label_to_addr.get(FuncLabel.MAIN_LABEL.name);
 
-        // Execute
-        var executor = new InstrExecutor();
-        var count = 0;
+        var mainCoroutine = new Coroutine(ctx);
+
         _halt = false;
 
-        while (!_call_stack.isEmpty()) {
-            if (count >= 100000) {
-                throw new Error("Max instruction limitation 10,0000 exceeds, maybe your program cannot terminate?");
-            }
-
-            if (_halt) {
-                return;
-            }
-
-            //System.out.println("executing : " + _instrs.get(_pc));
-            _instrs.get(_pc).accept(executor);
-            count++;
-        }
+        scheduler.addCoroutine(mainCoroutine);
+        scheduler.start();
     }
 
     /**
@@ -166,18 +158,18 @@ public final class Simulator {
     /**
      * Call stack, consists of frames.
      */
-    private Stack<Frame> _call_stack;
+    //private Stack<Frame> _call_stack;
 
     /**
      * Temporarily save the actual arguments given by the PARM instruction. These will be erased once a new stack
      * is created.
      */
-    private Vector<Integer> _actual_args;
+    //private Vector<Integer> _actual_args;
 
     /**
      * Program counter: point to the address of the instruction being executed.
      */
-    private int _pc;
+    //private int _pc;
 
     /**
      * Halt signal.
@@ -188,6 +180,11 @@ public final class Simulator {
      * Stack frame.
      */
     private class Frame {
+        /**
+         * Host context.
+         */
+        final CoroutineContext ctx;
+
         /**
          * The function entry.
          */
@@ -208,226 +205,297 @@ public final class Simulator {
          */
         int pcNext;
 
-        Frame(Label entry, int arraySize) {
+        Frame(Label entry, int arraySize, CoroutineContext ctx) {
+            this.ctx = ctx;
             this.entry = entry;
             this.array = new int[arraySize];
             var i = 0;
-            for (var arg : _actual_args) { // copy actual arguments
+            for (var arg : ctx._actual_args) { // copy actual arguments
                 this.array[i] = arg;
                 i++;
             }
-            _actual_args.clear(); // it will save args for future calls
+            ctx._actual_args.clear(); // it will save args for future calls
         }
 
-        Frame(TacFunc func) {
-            this(func.entry, func.getUsedTempCount());
+        Frame(TacFunc func, CoroutineContext ctx) {
+            this(func.entry, func.getUsedTempCount(), ctx);
             //System.out.println(func.entry + " " + func.getUsedTempCount());
         }
+
+        Frame(Frame t, CoroutineContext ctx) {
+            this.ctx = ctx;
+            this.array = t.array.clone();
+            this.entry = t.entry;
+            this.pcNext = t.pcNext;
+            this.retValDst = t.retValDst;
+        }
     }
+
+    static int coroutineID;
 
     /**
      * Instruction executor.
      */
-    private class InstrExecutor implements TacInstr.Visitor {
-        @Override
-        public void visitAssign(TacInstr.Assign instr) {
-            var frame = _call_stack.peek();
-            frame.array[instr.dst.index] = frame.array[instr.src.index];
+    private class Coroutine  {
 
-            _pc++;
+        final CoroutineContext ctx;
+        final InstrExecutor executor;
+        public final int coroutineID;
+
+        Coroutine(CoroutineContext ctx) {
+            this.ctx = ctx;
+            this.coroutineID = ++Simulator.coroutineID;
+            executor = new InstrExecutor();
         }
 
-        @Override
-        public void visitLoadVTbl(TacInstr.LoadVTbl instr) {
-            var frame = _call_stack.peek();
-            frame.array[instr.dst.index] = _vtable_to_addr.get(instr.vtbl.label.name);
+        /**
+         * @return number of instructions executed
+         */
+        void run(AtomicBoolean signal) {
+            int cnt = 0;
 
-            _pc++;
-        }
+            while (!ctx._call_stack.isEmpty()) {
+                if (_halt) break;
+                if (signal.get() && cnt>0) {
+                    signal.set(false);
+                    break;
+                }
 
-        @Override
-        public void visitLoadImm4(TacInstr.LoadImm4 instr) {
-            var frame = _call_stack.peek();
-            frame.array[instr.dst.index] = instr.value;
-
-            _pc++;
-        }
-
-        @Override
-        public void visitLoadStrConst(TacInstr.LoadStrConst instr) {
-            var frame = _call_stack.peek();
-            var index = _string_pool.add(instr.value);
-            frame.array[instr.dst.index] = index;
-
-            _pc++;
-        }
-
-        @Override
-        public void visitUnary(TacInstr.Unary instr) {
-            var frame = _call_stack.peek();
-            int operand = frame.array[instr.operand.index];
-            frame.array[instr.dst.index] = switch (instr.op) {
-                case NEG -> -operand;
-                case LNOT -> (operand == 0) ? 1 : 0;
-            };
-
-            _pc++;
-        }
-
-        @Override
-        public void visitBinary(TacInstr.Binary instr) {
-            var frame = _call_stack.peek();
-            var lhs = frame.array[instr.lhs.index];
-            var rhs = frame.array[instr.rhs.index];
-            frame.array[instr.dst.index] = switch (instr.op) {
-                case ADD -> lhs + rhs;
-                case SUB -> lhs - rhs;
-                case MUL -> lhs * rhs;
-                case DIV -> lhs / rhs;
-                case MOD -> lhs % rhs;
-                case EQU -> (lhs == rhs) ? 1 : 0;
-                case NEQ -> (lhs != rhs) ? 1 : 0;
-                case LES -> (lhs < rhs) ? 1 : 0;
-                case LEQ -> (lhs <= rhs) ? 1 : 0;
-                case GTR -> (lhs > rhs) ? 1 : 0;
-                case GEQ -> (lhs >= rhs) ? 1 : 0;
-                case LAND -> (lhs == 0) ? 0 : (rhs == 0) ? 0 : 1;
-                case LOR -> (lhs != 0) ? 1 : (rhs == 0) ? 0 : 1;
-            };
-
-            _pc++;
-        }
-
-        @Override
-        public void visitBranch(TacInstr.Branch instr) {
-            _pc = _label_to_addr.get(instr.target.name);
-        }
-
-        @Override
-        public void visitCondBranch(TacInstr.CondBranch instr) {
-            var frame = _call_stack.peek();
-            var jump = switch (instr.op) {
-                case BEQZ -> frame.array[instr.cond.index] == 0;
-                case BNEZ -> frame.array[instr.cond.index] != 0;
-            };
-
-            if (jump) {
-                _pc = _label_to_addr.get(instr.target.name);
-            } else {
-                _pc++;
+                //System.out.println("executing : " + _instrs.get(_pc));
+                _instrs.get(ctx._pc).accept(executor);
+                cnt++;
             }
         }
 
-        @Override
-        public void visitReturn(TacInstr.Return instr) {
-            var value = instr.value.map(temp -> _call_stack.peek().array[temp.index]);
-            returnWith(value);
+        boolean finished() {
+            return ctx._call_stack.isEmpty();
         }
 
-        private void returnWith(Optional<Integer> value) {
-            // Destroy the callee's frame
-            _call_stack.pop();
+        private class InstrExecutor implements TacInstr.Visitor {
+            @Override
+            public void visitAssign(TacInstr.Assign instr) {
+                var frame = ctx._call_stack.peek();
+                frame.array[instr.dst.index] = frame.array[instr.src.index];
 
-            // Recover caller's state, if the caller exists
-            if (!_call_stack.isEmpty()) {
-                var frame = _call_stack.peek();
-                value.ifPresent(v -> frame.array[frame.retValDst.index] = v);
-                _pc = _call_stack.peek().pcNext;
-            } // else: the entire program terminates
-        }
+                ctx._pc++;
+            }
 
-        @Override
-        public void visitParm(TacInstr.Parm instr) {
-            var frame = _call_stack.peek();
-            _actual_args.add(frame.array[instr.value.index]);
-            
-            //System.out.println("--------------------" + _actual_args);
+            @Override
+            public void visitLoadVTbl(TacInstr.LoadVTbl instr) {
+                var frame = ctx._call_stack.peek();
+                frame.array[instr.dst.index] = _vtable_to_addr.get(instr.vtbl.label.name);
 
-            _pc++;
-        }
+                ctx._pc++;
+            }
 
-        @Override
-        public void visitIndirectCall(TacInstr.IndirectCall instr) {
-            // Save caller's state
-            var frame = _call_stack.peek();
-            frame.pcNext = _pc + 1;
-            frame.retValDst = instr.dst.orElse(null);
+            @Override
+            public void visitLoadImm4(TacInstr.LoadImm4 instr) {
+                var frame = ctx._call_stack.peek();
+                frame.array[instr.dst.index] = instr.value;
 
-            // Create callee's frame and invoke
-            var addr = frame.array[instr.entry.index];
-            var func = _addr_to_function.get(addr);
-            _call_stack.push(new Frame(func));
-            _pc = addr;
-        }
+                ctx._pc++;
+            }
 
-        @Override
-        public void visitDirectCall(TacInstr.DirectCall instr) {
-            // Save caller's state
-            var frame = _call_stack.peek();
-            frame.pcNext = _pc + 1;
-            frame.retValDst = instr.dst.orElse(null);
+            @Override
+            public void visitLoadStrConst(TacInstr.LoadStrConst instr) {
+                var frame = ctx._call_stack.peek();
+                var index = _string_pool.add(instr.value);
+                frame.array[instr.dst.index] = index;
 
-            // Create callee's frame and invoke
-            if (instr.entry.isIntrinsic()) { // special: call intrinsic
-                var il = (IntrinsicLabel) instr.entry;
-                _call_stack.push(new Frame(il, 2));
-                callIntrinsic(il.opcode);
-            } else {
-                var func = _label_to_function.get(instr.entry.name);
-                _call_stack.push(new Frame(func));
-                _pc = _label_to_addr.get(instr.entry.name);
+                ctx._pc++;
+            }
+
+            @Override
+            public void visitUnary(TacInstr.Unary instr) {
+                var frame = ctx._call_stack.peek();
+                int operand = frame.array[instr.operand.index];
+                frame.array[instr.dst.index] = switch (instr.op) {
+                    case NEG -> -operand;
+                    case LNOT -> (operand == 0) ? 1 : 0;
+                };
+
+                ctx._pc++;
+            }
+
+            @Override
+            public void visitBinary(TacInstr.Binary instr) {
+                var frame = ctx._call_stack.peek();
+                var lhs = frame.array[instr.lhs.index];
+                var rhs = frame.array[instr.rhs.index];
+                frame.array[instr.dst.index] = switch (instr.op) {
+                    case ADD -> lhs + rhs;
+                    case SUB -> lhs - rhs;
+                    case MUL -> lhs * rhs;
+                    case DIV -> lhs / rhs;
+                    case MOD -> lhs % rhs;
+                    case EQU -> (lhs == rhs) ? 1 : 0;
+                    case NEQ -> (lhs != rhs) ? 1 : 0;
+                    case LES -> (lhs < rhs) ? 1 : 0;
+                    case LEQ -> (lhs <= rhs) ? 1 : 0;
+                    case GTR -> (lhs > rhs) ? 1 : 0;
+                    case GEQ -> (lhs >= rhs) ? 1 : 0;
+                    case LAND -> (lhs == 0) ? 0 : (rhs == 0) ? 0 : 1;
+                    case LOR -> (lhs != 0) ? 1 : (rhs == 0) ? 0 : 1;
+                };
+
+                ctx._pc++;
+            }
+
+            @Override
+            public void visitBranch(TacInstr.Branch instr) {
+                ctx._pc = _label_to_addr.get(instr.target.name);
+            }
+
+            @Override
+            public void visitCondBranch(TacInstr.CondBranch instr) {
+                var frame = ctx._call_stack.peek();
+                var jump = switch (instr.op) {
+                    case BEQZ -> frame.array[instr.cond.index] == 0;
+                    case BNEZ -> frame.array[instr.cond.index] != 0;
+                };
+
+                if (jump) {
+                    ctx._pc = _label_to_addr.get(instr.target.name);
+                } else {
+                    ctx._pc++;
+                }
+            }
+
+            @Override
+            public void visitReturn(TacInstr.Return instr) {
+                var value = instr.value.map(temp -> ctx._call_stack.peek().array[temp.index]);
+                returnWith(value);
+            }
+
+            private void returnWith(Optional<Integer> value) {
+                // Destroy the callee's frame
+                ctx._call_stack.pop();
+
+                // Recover caller's state, if the caller exists
+                if (!ctx._call_stack.isEmpty()) {
+                    var frame = ctx._call_stack.peek();
+                    value.ifPresent(v -> frame.array[frame.retValDst.index] = v);
+                    ctx._pc = ctx._call_stack.peek().pcNext;
+                } // else: the entire program terminates
+            }
+
+            @Override
+            public void visitParm(TacInstr.Parm instr) {
+                var frame = ctx._call_stack.peek();
+                ctx._actual_args.add(frame.array[instr.value.index]);
+
+                //System.out.println("--------------------" + _actual_args);
+
+                ctx._pc++;
+            }
+
+            @Override
+            public void visitIndirectCall(TacInstr.IndirectCall instr) {
+                // Save caller's state
+                var frame = ctx._call_stack.peek();
+                frame.pcNext = ctx._pc + 1;
+                frame.retValDst = instr.dst.orElse(null);
+
+                // Create callee's frame and invoke
+                var addr = frame.array[instr.entry.index];
+                var func = _addr_to_function.get(addr);
+                if (!ctx.isNextCallAsync) {
+                    ctx._call_stack.push(new Frame(func, ctx));
+                    ctx._pc = addr;
+                } else {
+                    ctx.isNextCallAsync = false;
+                    CoroutineContext ctx_ = new CoroutineContext();
+                    ctx_._call_stack.push(new Frame(func, ctx));
+                    ctx_._pc = addr;
+                    scheduler.addCoroutine(new Coroutine(ctx_));
+                    ctx._pc++;
+                }
+            }
+
+            @Override
+            public void visitDirectCall(TacInstr.DirectCall instr) {
+                // Save caller's state
+                var frame = ctx._call_stack.peek();
+                frame.pcNext = ctx._pc + 1;
+                frame.retValDst = instr.dst.orElse(null);
+
+                // Create callee's frame and invoke
+                if (instr.entry.isIntrinsic()) { // special: call intrinsic
+                    var il = (IntrinsicLabel) instr.entry;
+                    ctx._call_stack.push(new Frame(il, 2, ctx));
+                    callIntrinsic(il.opcode);
+                } else {
+                    var func = _label_to_function.get(instr.entry.name);
+                    if (!ctx.isNextCallAsync) {
+                        ctx._call_stack.push(new Frame(func, ctx));
+                        ctx._pc = _label_to_addr.get(instr.entry.name);
+                    } else {
+                        ctx.isNextCallAsync = false;
+                        CoroutineContext ctx_ = new CoroutineContext();
+                        ctx_._call_stack.push(new Frame(func, ctx_));
+                        ctx_._pc = _label_to_addr.get(instr.entry.name);
+                        ctx._pc++;
+                        scheduler.addCoroutine(new Coroutine(ctx_));
+                    }
+                }
+            }
+
+            @Override
+            public void visitGoLabel(TacInstr.GoLabel instr) {
+                ctx.isNextCallAsync = true;
+            }
+
+            private void callIntrinsic(Intrinsic.Opcode opcode) {
+                var frame = ctx._call_stack.peek();
+                Optional<Integer> retVal = Optional.empty();
+
+                switch (opcode) {
+                    case ALLOCATE -> retVal = Optional.of(_memory.alloc(frame.array[0]));
+                    case READ_LINE -> {
+                        var scanner = new Scanner(_in);
+                        var str = scanner.nextLine();
+                        assert str.length() <= 63;
+                        retVal = Optional.of(_string_pool.add(str));
+                    }
+                    case READ_INT -> {
+                        var scanner = new Scanner(_in);
+                        var value = scanner.nextInt();
+                        retVal = Optional.of(value);
+                    }
+                    case STRING_EQUAL -> retVal = Optional.of(frame.array[0] == frame.array[1] ? 1 : 0);
+                    case PRINT_INT -> {
+                        _out.print(frame.array[0]);
+                        _out.flush();
+                    }
+                    case PRINT_STRING -> {
+                        _out.print(_string_pool.get(frame.array[0]));
+                        _out.flush();
+                    }
+                    case PRINT_BOOL -> {
+                        _out.print(frame.array[0] == 0 ? "false" : "true");
+                        _out.flush();
+                    }
+                    case HALT -> _halt = true;
+                }
+
+                returnWith(retVal);
+            }
+
+            @Override
+            public void visitMemory(TacInstr.Memory instr) {
+                var frame = ctx._call_stack.peek();
+                int base = frame.array[instr.base.index];
+                //System.out.println(instr + " : " + base + " + " + instr.offset);
+                int offset = instr.offset;
+                switch (instr.op) {
+                    case LOAD -> frame.array[instr.dst.index] = _memory.load(base, offset);
+                    case STORE -> _memory.store(frame.array[instr.dst.index], base, offset);
+                }
+
+                ctx._pc++;
             }
         }
 
-        private void callIntrinsic(Intrinsic.Opcode opcode) {
-            var frame = _call_stack.peek();
-            Optional<Integer> retVal = Optional.empty();
-
-            switch (opcode) {
-                case ALLOCATE -> retVal = Optional.of(_memory.alloc(frame.array[0]));
-                case READ_LINE -> {
-                    var scanner = new Scanner(_in);
-                    var str = scanner.nextLine();
-                    assert str.length() <= 63;
-                    retVal = Optional.of(_string_pool.add(str));
-                }
-                case READ_INT -> {
-                    var scanner = new Scanner(_in);
-                    var value = scanner.nextInt();
-                    retVal = Optional.of(value);
-                }
-                case STRING_EQUAL -> retVal = Optional.of(frame.array[0] == frame.array[1] ? 1 : 0);
-                case PRINT_INT -> {
-                    _out.print(frame.array[0]);
-                    _out.flush();
-                }
-                case PRINT_STRING -> {
-                    _out.print(_string_pool.get(frame.array[0]));
-                    _out.flush();
-                }
-                case PRINT_BOOL -> {
-                    _out.print(frame.array[0] == 0 ? "false" : "true");
-                    _out.flush();
-                }
-                case HALT -> _halt = true;
-            }
-
-            returnWith(retVal);
-        }
-
-        @Override
-        public void visitMemory(TacInstr.Memory instr) {
-            var frame = _call_stack.peek();
-            int base = frame.array[instr.base.index];
-            //System.out.println(instr + " : " + base + " + " + instr.offset);
-            int offset = instr.offset;
-            switch (instr.op) {
-                case LOAD -> frame.array[instr.dst.index] = _memory.load(base, offset);
-                case STORE -> _memory.store(frame.array[instr.dst.index], base, offset);
-            }
-
-            _pc++;
-        }
     }
 
     /**
@@ -527,4 +595,76 @@ public final class Simulator {
             super("In simulator: " + msg);
         }
     }
+
+    /**
+     * Context of a coroutine, most importantly pc and stack
+     * For native languages registers should also be restored,
+     * however in TacVM pseudo registers are stored in stack frames.
+     */
+    private class CoroutineContext {
+        // Program counter
+        public int _pc;
+
+        // Call stack
+        private Stack<Frame> _call_stack;
+
+        public boolean isNextCallAsync;
+
+        /**
+         * Temporarily save the actual arguments given by the PARM instruction. These will be erased once a new stack
+         * is created.
+         */
+        private Vector<Integer> _actual_args;
+
+        CoroutineContext() { }
+
+        CoroutineContext fork() {
+            CoroutineContext ctx = new CoroutineContext();
+            ctx._pc = this._pc;
+            ctx._actual_args.addAll(this._actual_args);
+            this._call_stack.forEach(t -> ctx._call_stack.add(new Frame(t, ctx)));
+            return ctx;
+        }
+    }
+
+    class Scheduler {
+        Queue<Coroutine> queue = new LinkedList<>();
+
+        /**
+         * After every 5ms ticked will be set true to wake and run a new coroutine
+         */
+        AtomicBoolean signal = new AtomicBoolean(false);
+
+        Timer timer;
+
+        Scheduler() {
+            timer = new Timer("clock");
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    signal.set(true);
+                }
+            }, 0, 5);
+        }
+
+        void addCoroutine(Coroutine coroutine) {
+            System.out.println(coroutine.coroutineID);
+            queue.add(coroutine);
+        }
+
+        void start() {
+            // Round-Robin scheduler
+            while (!queue.isEmpty()) {
+                Coroutine task = queue.poll();
+                System.out.println("now running" + task.coroutineID);
+                task.run(signal);
+                if (!task.finished())
+                    queue.offer(task);
+            }
+            timer.cancel();
+        }
+
+    }
+
+    private Scheduler scheduler = new Scheduler();
 }

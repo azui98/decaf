@@ -29,7 +29,7 @@ public abstract class Tree {
         TOP_LEVEL, CLASS_DEF, VAR_DEF, METHOD_DEF,
         T_INT, T_BOOL, T_STRING, T_VOID, T_CLASS, T_ARRAY, T_FUNC, LAMBDA,
         LOCAL_VAR_DEF, BLOCK, ASSIGN, EXPR_EVAL, SKIP, IF, WHILE, FOR, BREAK, RETURN, PRINT,
-        INT_LIT, BOOL_LIT, STRING_LIT, NULL_LIT, VAR_SEL, INDEX_SEL, CALL,
+        INT_LIT, BOOL_LIT, STRING_LIT, NULL_LIT, VAR_SEL, INDEX_SEL, CALL, GOCALL,
         THIS, UNARY_EXPR, BINARY_EXPR, READ_INT, READ_LINE, NEW_CLASS, NEW_ARRAY, CLASS_TEST, CLASS_CAST
     }
 
@@ -984,6 +984,39 @@ public abstract class Tree {
         @Override
         public <C> void accept(Visitor<C> v, C ctx) {
             v.visitPrint(this, ctx);
+        }
+    }
+
+    /**
+     * Statement to start a coroutine.
+     * <pre>
+     *     'go' expr '(' exprList ')' ';'
+     * </pre>
+     */
+    public static class GoCall extends Stmt {
+        public final Call callExpr;
+
+        public GoCall(Call call, Pos pos) {
+            super(Kind.GOCALL, "GoCall", pos);
+            callExpr = call;
+        }
+
+        @Override
+        public int treeArity() {
+            return 1;
+        }
+
+        @Override
+        public Object treeElementAt(int index) {
+            return switch (index) {
+                case 0 -> callExpr;
+                default -> throw new IndexOutOfBoundsException(index);
+            };
+        }
+
+        @Override
+        public <C> void accept(Visitor<C> v, C ctx) {
+            v.visitGoCall(this, ctx);
         }
     }
 

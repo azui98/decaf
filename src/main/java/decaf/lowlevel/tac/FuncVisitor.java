@@ -49,7 +49,13 @@ public class FuncVisitor {
 	public final List<Temp> capTemps() {
 		return capTemps;
 	}
-	
+
+    /**
+     * Add a GoCall Label so that the next call will run in a new coroutine
+     */
+	public void addGoLabel() {
+	    func.add(new TacInstr.GoLabel());
+    }
 	
     /**
      * Append {@link TacInstr.Assign}.

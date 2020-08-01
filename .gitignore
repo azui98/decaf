@@ -26,6 +26,7 @@ hs_err_pid*
 TestCases/
 build.bat
 *.tac
+*.s
 report*.pdf
 .classpath
 .project

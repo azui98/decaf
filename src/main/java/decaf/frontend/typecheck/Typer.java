@@ -684,6 +684,11 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     }
 
     @Override
+    public void visitGoCall(Tree.GoCall goCall, ScopeStack ctx) {
+        goCall.callExpr.accept(this, ctx);
+    }
+
+    @Override
     public void visitCall(Tree.Call expr, ScopeStack ctx) {
         expr.type = BuiltInType.ERROR;
         Type rt;

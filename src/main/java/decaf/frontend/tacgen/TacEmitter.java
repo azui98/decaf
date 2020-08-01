@@ -432,6 +432,12 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
     }
 
     @Override
+    default void visitGoCall(Tree.GoCall goCall, FuncVisitor mv) {
+        mv.addGoLabel();
+        goCall.callExpr.accept(this, mv);
+    }
+
+    @Override
     default void visitCall(Tree.Call expr, FuncVisitor mv) {
         if (expr.isArrayLength) { // special case for array.length()
 

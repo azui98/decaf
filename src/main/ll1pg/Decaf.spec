@@ -18,7 +18,7 @@ PRINT        READ_INTEGER            READ_LINE
 BOOL_LIT     INT_LIT     STRING_LIT
 IDENTIFIER   AND         OR          STATIC      INSTANCE_OF
 LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
-ABSTRACT     VAR         FUN         DEDUCE
+ABSTRACT     VAR         FUN         DEDUCE      GO
 '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
 

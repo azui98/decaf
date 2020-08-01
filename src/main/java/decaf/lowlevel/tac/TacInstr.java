@@ -94,6 +94,10 @@ public abstract class TacInstr extends PseudoInstr {
             visitOthers(instr);
         }
 
+        default void visitGoLabel(GoLabel instr) {
+            visitOthers(instr);
+        }
+
         default void visitMemory(Memory instr) {
             visitOthers(instr);
         }
@@ -474,6 +478,28 @@ public abstract class TacInstr extends PseudoInstr {
         @Override
         public String toString() {
             return String.format("parm %s", value);
+        }
+    }
+
+    public static class GoLabel extends TacInstr {
+
+        public GoLabel() {
+            super(new Temp[]{}, new Temp[]{});
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitGoLabel(this);
+        }
+
+        @Override
+        public TacInstr map(Map<Temp, Temp> map) {
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return "GoLabel";
         }
     }
 

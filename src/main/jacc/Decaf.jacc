@@ -21,7 +21,8 @@ import java.util.Optional;
 %token PRINT        READ_INTEGER            READ_LINE   FUN
 %token BOOL_LIT     INT_LIT     STRING_LIT  ABSTRACT    VAR
 %token IDENTIFIER   AND         OR          STATIC      INSTANCE_OF
-%token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL     DEDUCE
+%token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
+%token DEDUCE       GO
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
 
@@ -229,6 +230,10 @@ Stmt            :   Block
                 |   PRINT '(' ExprList ')' ';'
                     {
                         $$ = svStmt(new Print($3.exprList, $1.pos));
+                    }
+                |   GO Expr '(' ExprList ')' ';'
+                    {
+                        $$ = svStmt(new GoCall(new Call($2.expr, $4.exprList, $3.pos), $1.pos));
                     }
                 ;
 

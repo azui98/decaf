@@ -346,7 +346,11 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         }
         ctx.close();
     }
-    
+
+    @Override
+    public void visitGoCall(Tree.GoCall goCall, ScopeStack ctx) {
+        goCall.callExpr.accept(this, ctx);
+    }
 
     @Override
     public void visitCall(Tree.Call expr, ScopeStack ctx) {

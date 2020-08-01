@@ -39,6 +39,7 @@ public interface Tokens {
     int VAR = 201;
     int DEDUCE = 202;
     int FUN = 203;
+    int GO = 204;
 
     // MUST use ASCII code to encode a single-character token.
     // '!' (code=33)

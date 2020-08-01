@@ -103,6 +103,10 @@ public interface Visitor<C> {
         visitOthers(that, ctx);
     }
 
+    default void visitGoCall(Tree.GoCall that, C ctx) {
+        visitOthers(that, ctx);
+    }
+
     default void visitIntLit(Tree.IntLit that, C ctx) {
         visitOthers(that, ctx);
     }
