@@ -101,6 +101,65 @@ class Main {
 ABCABCABCABCABCABCABCABCABCABC
 ```
 
+2. Caculating $n!$ using **functional programming** (FP).
+
+```java
+class Main {
+    static void main() {
+        new Main().foo();
+    }
+
+    int(int)(int(int)(int(int))) fix;
+    void foo() {
+        // need to capture `fix` by reference, so we make it a class field
+        fix = fun(int(int)(int(int)) f) => f(fun (int x) => fix(f)(x));
+        int(int) fac = fix(fun(int(int) f) => fun(int n) {
+            if (n == 0) return 1; else return n * f(n - 1);
+        });
+        Print(fac(10));
+    }
+}
+```
+
+- result
+
+```
+3628800
+```
+
+3. Capability of dealing with **enclosures** and **type inference** of anonymous functions
+
+```java
+class Data {
+	int data;
+	void setData(int data) { this.data = data; }
+	int getData() { return data; }
+}
+
+class Test {
+	int() getEnclosure() {  // This method returns a function that returns 2333
+		class Data data = new Data();
+		data.setData(2333);
+		var enclosure = fun() => data.getData(); // reference "data" is captured in the enclosure
+		return enclosure;
+	}
+}
+
+class Main {
+    static void main() {
+		class Test test = new Test();
+		var foo = test.getEnclosure();
+		Print(foo());
+	}
+}
+```
+
+- result
+
+```
+2333
+```
+
 ## Future Work
 
 1. Advanced coroutine scheduling strategies may be added in the future.
