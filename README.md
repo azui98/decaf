@@ -111,7 +111,7 @@ class Data {
 }
 
 class Test {
-	int() getData(int u, int v) {  // This method returns a function that returns a+b+c
+	int() getData(int u, int v) {  // This method returns a function that returns u+v
 		class Data a = new Data();
 		a.setData(u);
 		
