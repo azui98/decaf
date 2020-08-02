@@ -5,13 +5,13 @@ Decaf is a Java-like, but much smaller programming language mainly for education
 
 The *Compiler's Theory* course team of Tsinghua University has provided the basic version of the Decaf compiler and the TacVM, see https://github.com/decaf-lang/decaf/releases. Based on their contribution, I am able to develop more features of the Decaf language.
 
-## My Works:
+## My Development:
 
-1. <u>Abstract classes and methods</u> and its inheritance logic.
-2. <u>First-class functions</u>, including Lambda expressions, closures, functional variables, method references.
-3. <u>Automatic type inference</u>. Can automatically infer builtin types, class types and first-class function types.
-4. You can start a <u>coroutine</u> with a lightweight grammar the same as Golang. TacVM will schedule coroutines using *Round Robin* strategy.
-5. <u>Mutex lock</u> is supported natively, and it's easy to wrap it to develop various locks, like RW-locks, reentrant locks, semaphores and so on.
+1. **Abstract classes and methods** and its inheritance logic.
+2. **First-class functions**, including Lambda expressions, closures, functional variables, method references.
+3. **Automatic type inference** when declaring variables and references. Can automatically infer builtin types, reference types and first-class function types.
+4. You can start a **coroutine** with a lightweight grammar the same as Golang. TacVM is upgraded to a multi-coroutine version. It can schedule coroutines using *Round Robin* strategy.
+5. **Mutex lock** is supported natively, and it's easy to wrap it to develop various locks, like RW-locks, reentrant locks, semaphores and so on.
 
 
 ## Getting Started
