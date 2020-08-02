@@ -101,33 +101,7 @@ class Main {
 ABCABCABCABCABCABCABCABCABCABC
 ```
 
-2. Caculating $n!$ using **functional programming** (FP).
-
-```java
-class Main {
-    static void main() {
-        new Main().foo();
-    }
-
-    int(int)(int(int)(int(int))) fix;
-    void foo() {
-        // need to capture `fix` by reference, so we make it a class field
-        fix = fun(int(int)(int(int)) f) => f(fun (int x) => fix(f)(x));
-        int(int) fac = fix(fun(int(int) f) => fun(int n) {
-            if (n == 0) return 1; else return n * f(n - 1);
-        });
-        Print(fac(10));
-    }
-}
-```
-
-- result
-
-```
-3628800
-```
-
-3. Capability of dealing with **enclosures** and **type inference** of anonymous functions
+2. Capability of dealing with **enclosures** and **type inference** of anonymous functions
 
 ```java
 class Data {
@@ -137,18 +111,30 @@ class Data {
 }
 
 class Test {
-	int() getEnclosure() {  // This method returns a function that returns 2333
-		class Data data = new Data();
-		data.setData(2333);
-		var enclosure = fun() => data.getData(); // reference "data" is captured in the enclosure
-		return enclosure;
+	int() getData(int u, int v) {  // This method returns a function that returns a+b+c
+		class Data a = new Data();
+		a.setData(u);
+		
+		var foo = fun(int y) {
+			
+			class Data b = new Data();
+			b.setData(y);
+			
+			var bar = fun() {
+				return fun() => a.getData() + b.getData(); // Captures "a" and "b" from different scopes
+			};
+			
+			return bar();
+		};
+		
+		return fun() => foo(v)(); // Return a function created inside "foo"
 	}
 }
 
 class Main {
     static void main() {
 		class Test test = new Test();
-		var foo = test.getEnclosure();
+		var foo = test.getData(12, 34);
 		Print(foo());
 	}
 }
@@ -157,7 +143,7 @@ class Main {
 - result
 
 ```
-2333
+46
 ```
 
 ## Future Work
