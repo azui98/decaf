@@ -1,10 +1,18 @@
-# The New Decaf Compiler
+# The New Decaf Compiler Project
 
-<img src="https://github.com/decaf-lang/decaf/wiki/images/decaf-logo-h.svg?sanitize=true" width="300" align=center></img>
 
 Decaf is a Java-like, but much smaller programming language mainly for educational purpose.
-We now have at least three different implementations of the compiler in Java, Scala and Rust.
-Since the standard language has quite a limited set of language features, students are welcome to add their own new features.
+
+The *Compiler's Theory* course team of Tsinghua University has provided the basic version of the Decaf compiler and the TacVM, see https://github.com/decaf-lang/decaf/releases. Based on their contribution, I am able to develop more features of the Decaf language.
+
+## My Works:
+
+1. <u>Abstract classes and methods</u> and its inheritance logic.
+2. <u>First-class functions</u>, including Lambda expressions, closures, functional variables, method references.
+3. <u>Automatic type inference</u>. Can automatically infer builtin types, class types and first-class function types.
+4. You can start a <u>coroutine</u> with a lightweight grammar the same as Golang. TacVM will schedule coroutines using *Round Robin* strategy.
+5. <u>Mutex lock</u> is supported natively, and it's easy to wrap it to develop various locks, like RW-locks, reentrant locks, semaphores and so on.
+
 
 ## Getting Started
 
@@ -24,8 +32,6 @@ gradle build
 
 The built jar will be located at `build/libs/decaf.jar`.
 
-Or, import the project in a Java IDE (like IDEA or Eclipse, or your favorite VS Code) and use gradle plugin, if available.
-
 ## Run
 
 In your CLI, type
@@ -39,29 +45,65 @@ to display the usage help.
 Possible targets/tasks are:
 
 - PA1: parse source code and output the pretty printed tree, or error messages
-- PA1-LL: like PA1, but use hand-coded LL parsing algorithm, with the help of a LL table generator [ll1pg](https://github.com/paulzfm/ll1pg)
 - PA2: type check and output the pretty printed scopes, or error messages
 - PA3: generate TAC (three-address code), dump it to a .tac file, and then output the execution result using our built-in simulator
-- PA4: currently same with PA3, will be reserved for students to do a bunch of optimizations on TAC
-- PA5: (default target) allocate registers and emit assembly code, currently we are using a very brute-force algorithm and only generates MIPS assembly code (with pseudo-ops, and no delayed branches)
 
-To run the MIPS assembly code, you may need [spim](http://spimsimulator.sourceforge.net), a MIPS32 simulator.
-For Mac OS users, simply install `spim` with `brew install spim` and run with `spim -file your_file.s`.
+Typically, just type
+```sh
+java -jar --enable-preview build/libs/decaf.jar ${dir}/${filename}.decaf -t PA3
+```
+to generate the TAC program and run it with TacVM.
 
-## Releases
 
-See https://github.com/decaf-lang/decaf/releases for releases, including separate frameworks for PA1 -- PA3.
+## Some Interesting Examples
 
-## Materials
+1. Printing "ABCABCABC..." in turn by 3 coroutines.
 
-We have a couple of Chinese documents on the language specification and implementation outlines:
+```java
+class CondVar {
+    int value;
+    void init() { value = 0; }
+    int getValue() { return value; }
+    void flap() { value = (value+1)%3; }
+}
+class Test {
+    class CondVar cv;
+    void foo(int id, string name) {
+        int cnt = 0;
+        while (cnt < 10) {
+            lock(1);
+            if (cv.getValue() == id) {
+                Print(name);
+                cv.flap();
+                cnt = cnt + 1;
+            }
+            unlock(1);
+        }
+    }
+    void start() {
+        cv = new CondVar();
+        go foo(0, "A"); // starting 3 coroutines
+        go foo(1, "B");
+        go foo(2, "C");
+    }
+}
+class Main {
+    static void main() {
+        class Test test = new Test();
+        test.start();
+    }
+}
+```
 
-- https://decaf-lang.gitbook.io
-- https://decaf-project.gitbook.io
+- result
 
-## Development & Contribution
+```
+ABCABCABCABCABCABCABCABCABCABC
+```
 
-In future, we will develop on (possibly variates of) development branches,
-and only merge release versions into the master branch.
+## Future Work
 
-Issues and pull requests for fixing bugs are welcome. However, adding new language features will not be considered, because that's students' work!
+1. Advanced coroutine scheduling strategies may be added in the future.
+
+2. Currently TacVM is binded with the compiler, which means it's also written in Java. It's strange that a VM is implemented with another VM-needed language. So it may be reimplemented in a native language like C++/Rust.
+
