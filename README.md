@@ -105,38 +105,38 @@ ABCABCABCABCABCABCABCABCABCABC
 
 ```java
 class Data {
-	int data;
-	void setData(int data) { this.data = data; }
-	int getData() { return data; }
+    int data;
+    void setData(int data) { this.data = data; }
+    int getData() { return data; }
 }
 
 class Test {
-	int() getData(int u, int v) {  // This method returns a function that returns u+v
-		class Data a = new Data();
-		a.setData(u);
-		
-		var foo = fun(int y) {
-			
-			class Data b = new Data();
-			b.setData(y);
-			
-			var bar = fun() {
-				return fun() => a.getData() + b.getData(); // Captures "a" and "b" from different scopes
-			};
-			
-			return bar();
-		};
-		
-		return fun() => foo(v)(); // Return a function created inside "foo"
-	}
+    int() getData(int u, int v) {  // This method returns a function that returns u+v
+        class Data a = new Data();
+        a.setData(u);
+
+        var foo = fun(int y) {
+            
+            class Data b = new Data();
+            b.setData(y);
+            
+            var bar = fun() {
+                return fun() => a.getData() + b.getData(); // Captures "a" and "b" from different scopes
+            };
+            
+            return bar();
+        };
+        
+        return fun() => foo(v)(); // Return a function created inside "foo"
+    }
 }
 
 class Main {
     static void main() {
-		class Test test = new Test();
-		var foo = test.getData(12, 34);
-		Print(foo());
-	}
+        class Test test = new Test();
+        var foo = test.getData(12, 34);
+        Print(foo());
+    }
 }
 ```
 
